@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyTransfer - Kolay Dosya Paylaşımı</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Modulerized CSS stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+</head>
+
+<body>
+
+    <!-- Lock Screen Container (Visible when unauthenticated) -->
+    <div class="lock-screen-container" id="lock-screen" style="display: none;">
+        <div class="card lock-card">
+            <div class="logo-container" style="justify-content: center; margin-bottom: 20px; text-align: left;">
+                <div class="logo-icon" style="background: none;">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="PyTransfer Logo"
+                        style="width: 44px; height: 44px;">
+                </div>
+                <div class="logo-text">
+                    <h1>PyTransfer</h1>
+                    <p>Güvenli Erişim Paneli</p>
+                </div>
+            </div>
+            <p class="lock-message">Bu bilgisayara bağlanmak için 4 haneli PIN kodunu girin.</p>
+            <div class="pin-input-group">
+                <input type="password" id="pin-input" placeholder="PIN Kodu" maxlength="6">
+                <button id="verify-pin-btn" class="btn btn-primary"
+                    style="justify-content: center; width: 100%; margin-top: 15px;">
+                    Bağlan
+                </button>
+            </div>
+            <p id="lock-error" class="lock-error-msg"
+                style="color: var(--error); font-size: 12px; margin-top: 12px; display: none;"></p>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="app-container" id="main-app" style="display: none;">
+
+        <!-- Header -->
+        <header class="card">
+            <div class="logo-container">
+                <div class="logo-icon" style="background: none;">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="PyTransfer Logo"
+                        style="width: 44px; height: 44px;">
+                </div>
+                <div class="logo-text">
+                    <h1>PyTransfer</h1>
+                    <p>Cihazlar arası kolay paylaşım</p>
+                </div>
+            </div>
+            <div class="header-status-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="status-badge"
+                    style="padding: 0 12px; height: 32px; box-sizing: border-box; font-size: 12px;">
+                    <div class="status-dot"></div>
+                    <span id="connection-status">Bilgisayara Bağlı</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+
+            <!-- Left Panel: Shared Files -->
+            <div class="card">
+                <div class="panel-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h2 class="panel-title" style="margin: 0;">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> Paylaşılan Dosyalar
+                        </h2>
+                        <button id="download-all-btn" class="btn btn-primary" style="display: none; padding: 5px 12px; font-size: 13px;">
+                            <i class="fa-solid fa-file-zipper"></i> Tümünü İndir (ZIP)
+                        </button>
+                    </div>
+                    <div id="file-list-container" class="file-list">
+                        <!-- Dynamic file list will be loaded here -->
+                        <div class="no-files">
+                            <i class="fa-regular fa-folder-open"></i>
+                            <p>Henüz bilgisayardan paylaşılan dosya yok.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Upload Files -->
+            <div class="card">
+                <div class="panel-content">
+                    <h2 class="panel-title">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        Dosya Gönder
+                    </h2>
+
+                    <input type="file" id="file-input" multiple style="display: none;">
+
+                    <div class="upload-zone" id="drop-zone">
+                        <div class="upload-icon">
+                            <i class="fa-solid fa-file-arrow-up"></i>
+                        </div>
+                        <p class="upload-text">Dosyaları sürükleyip bırakın</p>
+                        <p class="upload-subtext">veya seçmek için tıklayın</p>
+                    </div>
+
+                    <div id="progress-container" class="progress-container">
+                        <!-- Dynamic upload progress will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Panel: Shared Clipboard -->
+            <div class="card clipboard-panel">
+                <div class="panel-content">
+                    <h2 class="panel-title">
+                        <i class="fa-regular fa-clipboard"></i>
+                        Ortak Pano
+                    </h2>
+                    <div class="clipboard-layout">
+                        <div class="clipboard-main">
+                            <textarea id="clipboard-text"
+                                placeholder="Paylaşmak istediğiniz metin veya bağlantıyı buraya yazın..."></textarea>
+                            <div class="clipboard-actions">
+                                <button id="copy-clipboard-btn" class="btn btn-secondary">
+                                    <i class="fa-regular fa-copy"></i>
+                                    Panoyu Kopyala
+                                </button>
+                                <button id="send-clipboard-btn" class="btn btn-primary">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                    Bilgisayara Gönder
+                                </button>
+                            </div>
+                        </div>
+                        <div class="clipboard-history-container">
+                            <h3 class="history-title">Pano Geçmişi (Son 10)</h3>
+                            <div id="clipboard-history-list" class="history-list">
+                                <!-- Dynamic history items will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Media Preview Modal -->
+    <div id="preview-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <h3 id="preview-title" class="modal-title">Dosya Önizleme</h3>
+
+                </div>
+                <button id="close-preview-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="preview-body">
+                <!-- Dynamic media player will be injected here -->
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Footer -->
+    <footer>
+        <p>PyTransfer ile yerel ağ üzerinden hızlı aktarım.</p>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i id="toast-icon" class="fa-solid fa-circle-check toast-icon"></i>
+        <span id="toast-text" class="toast-text">Başarılı!</span>
+    </div>
+
+    <!-- Modulerized JS application -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>
