@@ -21,6 +21,8 @@ pin_code = ""
 otp_enabled = False
 _otp_timer = None
 
+public_url = None
+
 active_clients = {}
 blocked_clients = set()
 discovered_servers = {}

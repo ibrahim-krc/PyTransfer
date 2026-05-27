@@ -73,6 +73,9 @@ def start_server(host, port, fm, log_cb, rec_cb):
         
     from server.middleware import SpeedTrackerMiddleware
     wrapped_app = SpeedTrackerMiddleware(core.app)
+    
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    wrapped_app = ProxyFix(wrapped_app, x_for=1, x_host=1)
         
     _server_thread = ServerThread(host, port, core.app, wsgi_app=wrapped_app)
     _server_thread.start()

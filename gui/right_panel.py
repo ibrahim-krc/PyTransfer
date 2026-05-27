@@ -238,6 +238,7 @@ class RightPanel(ctk.CTkFrame):
         self.default_tm_limit_entry.insert(0, str(self.controller.settings.get("default_time_limit", 0)))
         self.default_tm_limit_entry.pack(side="right")
         self.default_tm_limit_entry.bind("<FocusOut>", lambda e: self._save_default_limits())
+        self.default_tm_limit_entry.bind("<FocusOut>", lambda e: self._save_default_limits())
         self.default_tm_limit_entry.bind("<Return>", lambda e: self._save_default_limits())
 
         # ── Güvenlik Ayarları başlığı ──────────────────────────────────

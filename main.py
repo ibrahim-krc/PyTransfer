@@ -44,6 +44,7 @@ def main():
     arasındaki geri bildirim mekanizmalarını kurarak döngüyü başlatır.
     """
     file_manager = utils.FileManager()
+        
     root = CTkDnD()
     
     def start_server_callback(host, port):
@@ -75,7 +76,6 @@ def main():
     from pystray import MenuItem as item
     import threading
     from PIL import Image
-    import os
 
     icon_path = resource_path(os.path.join("assets", "logo.ico"))
     if os.path.exists(icon_path):

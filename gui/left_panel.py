@@ -13,8 +13,7 @@ class LeftPanel(ctk.CTkFrame):
         """
         super().__init__(parent, width=360, corner_radius=0)
         self.controller = controller
-        
-        self.grid_rowconfigure(9, weight=1)
+        self.grid_rowconfigure(10, weight=1)
         
         self.create_widgets()
 
@@ -66,8 +65,25 @@ class LeftPanel(ctk.CTkFrame):
         )
         self.status_indicator.grid(row=0, column=0, padx=15, pady=8, sticky="w")
         
-        ip_label = ctk.CTkLabel(self, text="Ağ Arayüzü (IP Adresi):", font=ctk.CTkFont(size=13, weight="bold"))
-        ip_label.grid(row=3, column=0, padx=20, pady=(15, 5), sticky="w")
+        self.ip_header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.ip_header_frame.grid(row=3, column=0, padx=20, pady=(15, 5), sticky="ew")
+        
+        ip_label = ctk.CTkLabel(self.ip_header_frame, text="Ağ Arayüzü (IP)", font=ctk.CTkFont(size=13, weight="bold"))
+        ip_label.pack(side="left")
+        
+        separator_label = ctk.CTkLabel(self.ip_header_frame, text=" | ", font=ctk.CTkFont(size=13), text_color="gray")
+        separator_label.pack(side="left", padx=5)
+        
+        self.tunnel_switch = ctk.CTkSwitch(
+            self.ip_header_frame,
+            text="İnternete Aç (Dış Ağ)",
+            font=ctk.CTkFont(weight="bold", size=11),
+            command=self.controller.on_tunnel_toggle,
+            state="disabled",
+            switch_width=32,
+            switch_height=16
+        )
+        self.tunnel_switch.pack(side="left")
         
         ip_options = [item['label'] for item in self.controller.labeled_ips]
         self.ip_combobox = ctk.CTkComboBox(
@@ -137,6 +153,7 @@ class LeftPanel(ctk.CTkFrame):
         )
         self.activity_label.grid(row=0, column=0, sticky="ew")
         
+
         self.server_toggle_btn = ctk.CTkButton(
             self, 
             text="Sunucuyu Başlat", 
@@ -146,7 +163,7 @@ class LeftPanel(ctk.CTkFrame):
             font=ctk.CTkFont(weight="bold", size=14),
             command=self.controller.toggle_server
         )
-        self.server_toggle_btn.grid(row=10, column=0, padx=20, pady=(15, 25), sticky="ew")
+        self.server_toggle_btn.grid(row=11, column=0, padx=20, pady=(15, 25), sticky="ew")
 
     def update_pin_display(self, pin_code, security_enabled):
         """

@@ -142,6 +142,7 @@ class PyTransferGUI:
         self.server_running = False
         self._server_starting = False  # üst üste tıklamayı engeller
         self.qr_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qr_code.png")
+        self.tunnel = None
 
         self.root.title("PyTransfer - Mobil & Yerel Ağ Dosya Transferi")
         self.root.minsize(950, 660)
@@ -285,6 +286,10 @@ class PyTransferGUI:
         """
         url = f"http://{self.selected_ip}:{self.port}"
         
+        # Eğer tünel aktifse, QR kod public URL'yi göstersin
+        if core.public_url:
+            url = core.public_url
+
         qr_url = url
         if self.security_enabled_var.get() and self.pin_code:
             qr_url = f"{url}?pin={self.pin_code}"
@@ -411,12 +416,9 @@ class PyTransferGUI:
     def _on_server_started(self):
         """Sunucu başarıyla başladıktan sonra UI'ı günceller."""
         self._server_starting = False
+        self.left_panel.server_toggle_btn.configure(text="Sunucuyu Durdur", fg_color="#ef4444", hover_color="#b91c1c")
+        self.left_panel.tunnel_switch.configure(state="normal")
         self.server_running = True
-        self.left_panel.server_toggle_btn.configure(
-            text="Sunucuyu Durdur", state="normal",
-            fg_color="#ef4444", hover_color="#dc2626",
-            text_color=("#fff", "#fff")
-        )
         self.left_panel.status_frame.configure(fg_color=("#dcfce7", "#143f24"))
         self.left_panel.status_indicator.configure(text="● Sunucu Aktif", text_color="#10b981")
         self.add_log(f"BİLGİ: Sunucu başlatıldı -> http://{self.selected_ip}:{self.port}")
@@ -430,6 +432,13 @@ class PyTransferGUI:
         )
         self.left_panel.status_frame.configure(fg_color=("#fee2e2", "#3f1a1a"))
         self.left_panel.status_indicator.configure(text="● Durduruldu", text_color="#ef4444")
+        self.left_panel.server_toggle_btn.configure(text="Sunucuyu Başlat", fg_color="#10b981", hover_color="#059669")
+        self.left_panel.tunnel_switch.configure(state="disabled")
+        if self.tunnel:
+            self.tunnel.stop()
+            self.left_panel.tunnel_switch.deselect()
+            self.left_panel.tunnel_switch.configure(text="🌍 İnternete Aç (Dış Ağ)")
+            core.public_url = None
         port_entry = self._get_port_entry()
         if port_entry:
             port_entry.configure(state="normal")
@@ -1254,6 +1263,60 @@ class PyTransferGUI:
         self.left_panel.update_pin_display(self.pin_code, self.security_enabled_var.get())
         self.update_qr_code()
         self.add_log(f"GÜVENLİK: Yeni rastgele PIN kodu üretildi: {self.pin_code}")
+
+    def on_tunnel_toggle(self):
+        """
+        Dış ağa aç (internet) butonu tetiklendiğinde çalışır.
+        """
+        is_on = self.left_panel.tunnel_switch.get()
+        if is_on:
+            from tkinter import messagebox
+            msg = (
+                "⚠️ DİKKAT: SUNUCUNUZU İNTERNETE AÇIYORSUNUZ\n\n"
+                "• Bu işlemi onayladığınızda uygulamanız tüm dünyaya açık hale gelir.\n"
+                "• Dosya transferleri kendi yerel modeminiz (LAN) üzerinden değil, doğrudan İNTERNET kotanız üzerinden yapılacaktır.\n"
+                "• Aktarım hızı, internet paketinizin 'Yükleme (Upload)' sınırıyla limitlenecektir.\n"
+                "• Çok büyük (örneğin 1-2 GB üstü) dosyaları bu yöntemle göndermeniz önerilmez; bağlantı uzun sürdüğünde kopabilir.\n\n"
+                "Yine de devam etmek istiyor musunuz?"
+            )
+            if not messagebox.askyesno("Dış Ağa Açma Uyarısı", msg):
+                self.left_panel.tunnel_switch.deselect()
+                return
+
+            self.left_panel.tunnel_switch.configure(text="Bağlanıyor...", state="disabled")
+            self.add_log("BİLGİ: Dış ağ bağlantısı (Cloudflare Tunnels) başlatılıyor...")
+            
+            def _start_tunnel():
+                from server.tunnel import CloudflareTunnel
+                if not self.tunnel:
+                    self.tunnel = CloudflareTunnel(self.selected_ip, self.port, log_callback=self.add_log)
+                
+                success = self.tunnel.start()
+                if success and self.tunnel.public_url:
+                    core.public_url = self.tunnel.public_url
+                    self.root.after(0, self._on_tunnel_success)
+                else:
+                    self.root.after(0, self._on_tunnel_fail)
+                    
+            import threading
+            threading.Thread(target=_start_tunnel, daemon=True).start()
+        else:
+            self.add_log("BİLGİ: Dış ağ bağlantısı kapatılıyor...")
+            if self.tunnel:
+                self.tunnel.stop()
+            core.public_url = None
+            self.update_qr_code()
+            self.left_panel.tunnel_switch.configure(text="İnternete Aç (Dış Ağ)", state="normal")
+
+    def _on_tunnel_success(self):
+        self.left_panel.tunnel_switch.configure(text="İnternete Açık (Global)", state="normal")
+        self.update_qr_code()
+        
+    def _on_tunnel_fail(self):
+        self.left_panel.tunnel_switch.configure(text="İnternete Aç (Dış Ağ)", state="normal")
+        self.left_panel.tunnel_switch.deselect()
+        from tkinter import messagebox
+        messagebox.showerror("Hata", "Tünel başlatılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.")
 
     def on_pin_changed_by_server(self, new_pin):
         """
