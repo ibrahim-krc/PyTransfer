@@ -212,8 +212,39 @@ class RightPanel(ctk.CTkFrame):
         )
         self.auto_start_switch.grid(row=row, column=0, columnspan=2, padx=15, pady=(4, 8), sticky="w")
         row += 1
+        
+        # Auto-Sync (Lokal Dropbox)
+        import os
+        sync_label = ctk.CTkLabel(scroll, text="Klasör Senkronizasyonu (Auto-Sync):", font=ctk.CTkFont(weight="bold"))
+        sync_label.grid(row=row, column=0, columnspan=2, padx=15, pady=(8, 3), sticky="w")
+        row += 1
+        
+        sync_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        sync_frame.grid(row=row, column=0, columnspan=2, padx=15, pady=(0, 8), sticky="ew")
+        sync_frame.grid_columnconfigure(0, weight=1)
+        row += 1
+        
+        default_sync_folder = os.path.join(os.path.expanduser("~"), "Documents", "PyTransfer_Sync")
+        self.sync_folder_entry = ctk.CTkEntry(sync_frame, placeholder_text="Senkronizasyon klasörü...")
+        self.sync_folder_entry.grid(row=0, column=0, padx=(0, 8), sticky="ew")
+        self.sync_folder_entry.insert(0, self.controller.settings.get("sync_folder", default_sync_folder))
+        self.sync_folder_entry.configure(state="readonly")
+        
+        sync_browse_btn = ctk.CTkButton(sync_frame, text="Gözat...", width=80,
+                                        command=self._browse_sync_folder)
+        sync_browse_btn.grid(row=0, column=1)
+        
+        self.sync_enabled_var = ctk.BooleanVar(value=self.controller.settings.get("sync_enabled", False))
+        self.sync_switch = ctk.CTkSwitch(
+            scroll,
+            text="Auto-Sync'i Etkinleştir",
+            variable=self.sync_enabled_var,
+            command=self._toggle_sync_enabled,
+            font=ctk.CTkFont(size=12)
+        )
+        self.sync_switch.grid(row=row, column=0, columnspan=2, padx=15, pady=(4, 8), sticky="w")
+        row += 1
 
-        # Varsayılan Paylaşım Limitleri
         share_limits_label = ctk.CTkLabel(scroll, text="Varsayılan Paylaşım Limitleri:", font=ctk.CTkFont(weight="bold"))
         share_limits_label.grid(row=row, column=0, columnspan=2, padx=15, pady=(8, 3), sticky="w")
         row += 1
@@ -232,14 +263,22 @@ class RightPanel(ctk.CTkFrame):
         self.default_dl_limit_entry.bind("<Return>", lambda e: self._save_default_limits())
 
         tm_lim_row = ctk.CTkFrame(limits_frame, fg_color="transparent")
-        tm_lim_row.pack(fill="x", padx=12, pady=(4, 10))
+        tm_lim_row.pack(fill="x", padx=12, pady=(4, 4))
         ctk.CTkLabel(tm_lim_row, text="Süre Limiti dk (0=sınırsız):", font=ctk.CTkFont(size=12)).pack(side="left")
         self.default_tm_limit_entry = ctk.CTkEntry(tm_lim_row, width=70, justify="center")
         self.default_tm_limit_entry.insert(0, str(self.controller.settings.get("default_time_limit", 0)))
         self.default_tm_limit_entry.pack(side="right")
         self.default_tm_limit_entry.bind("<FocusOut>", lambda e: self._save_default_limits())
-        self.default_tm_limit_entry.bind("<FocusOut>", lambda e: self._save_default_limits())
         self.default_tm_limit_entry.bind("<Return>", lambda e: self._save_default_limits())
+        
+        bw_lim_row = ctk.CTkFrame(limits_frame, fg_color="transparent")
+        bw_lim_row.pack(fill="x", padx=12, pady=(4, 10))
+        ctk.CTkLabel(bw_lim_row, text="Maks İndirme Hızı MB/s (0=sınırsız):", font=ctk.CTkFont(size=12)).pack(side="left")
+        self.max_bw_entry = ctk.CTkEntry(bw_lim_row, width=70, justify="center")
+        self.max_bw_entry.insert(0, str(self.controller.settings.get("max_bandwidth", 0)))
+        self.max_bw_entry.pack(side="right")
+        self.max_bw_entry.bind("<FocusOut>", lambda e: self._save_default_limits())
+        self.max_bw_entry.bind("<Return>", lambda e: self._save_default_limits())
 
         # ── Güvenlik Ayarları başlığı ──────────────────────────────────
         sep1 = ctk.CTkFrame(scroll, height=2, fg_color=("#e2e8f0", "#2d3748"))
@@ -323,13 +362,60 @@ class RightPanel(ctk.CTkFrame):
         try:
             dl = int(self.default_dl_limit_entry.get().strip())
             tm = int(self.default_tm_limit_entry.get().strip())
-            if dl < 0 or tm < 0:
+            bw = float(self.max_bw_entry.get().strip())
+            if dl < 0 or tm < 0 or bw < 0:
                 raise ValueError()
         except ValueError:
             return
         self.controller.settings["default_download_limit"] = dl
         self.controller.settings["default_time_limit"] = tm
+        self.controller.settings["max_bandwidth"] = bw
         settings_manager.save(self.controller.settings)
+
+    def _browse_sync_folder(self):
+        from customtkinter import filedialog
+        import settings_manager
+        from server import core
+        path = filedialog.askdirectory(title="Senkronizasyon Klasörünü Seçin")
+        if path:
+            self.sync_folder_entry.configure(state="normal")
+            self.sync_folder_entry.delete(0, 'end')
+            self.sync_folder_entry.insert(0, path)
+            self.sync_folder_entry.configure(state="readonly")
+            
+            self.controller.settings["sync_folder"] = path
+            settings_manager.save(self.controller.settings)
+            
+            if self.controller.settings.get("sync_enabled", False):
+                if core.sync_manager:
+                    core.sync_manager.stop()
+                    core.sync_manager.start(path)
+                from tkinter import messagebox
+                messagebox.showinfo("Bilgi", "Senkronizasyon klasörü değiştirildi. Sistem yeni klasörü anında izlemeye başladı!", parent=self._settings_window)
+
+    def _toggle_sync_enabled(self):
+        import settings_manager
+        from server import core
+        from server.sync import SyncManager
+        
+        is_enabled = self.sync_enabled_var.get()
+        self.controller.settings["sync_enabled"] = is_enabled
+        settings_manager.save(self.controller.settings)
+        
+        if is_enabled:
+            # Sync'i başlat
+            if not core.sync_manager:
+                core.sync_manager = SyncManager()
+            sync_folder = self.controller.settings.get("sync_folder")
+            if sync_folder:
+                import os
+                if not os.path.exists(sync_folder):
+                    os.makedirs(sync_folder, exist_ok=True)
+                core.sync_manager.start(sync_folder)
+        else:
+            # Sync'i durdur
+            if core.sync_manager:
+                core.sync_manager.stop()
 
     @property
     def shared_scrollable(self):

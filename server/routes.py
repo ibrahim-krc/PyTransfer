@@ -282,6 +282,50 @@ def register_routes(app):
             
         return jsonify({"status": "error", "message": "Upload failed"}), 500
 
+    @app.route('/api/sync/list', methods=['GET'])
+    def sync_list():
+        """
+        Ortak klasördeki dosyaların listesini ve son değiştirilme zamanlarını döndürür.
+        """
+        # Güvenlik kontrolü - opsiyonel ama iyi olabilir, aynı ağdan geldiğini varsayıyoruz.
+        if not core.sync_manager or not core.sync_manager.running:
+            return jsonify({"status": "error", "message": "Sync is disabled"}), 400
+            
+        sync_folder = core.sync_manager.sync_folder
+        if not os.path.exists(sync_folder):
+            return jsonify({"files": []})
+            
+        files = []
+        try:
+            for f in os.listdir(sync_folder):
+                path = os.path.join(sync_folder, f)
+                if os.path.isfile(path):
+                    files.append({
+                        "name": f,
+                        "mtime": os.path.getmtime(path),
+                        "size": os.path.getsize(path)
+                    })
+        except Exception:
+            pass
+            
+        return jsonify({"status": "success", "files": files})
+
+    @app.route('/api/sync/download/<path:filename>', methods=['GET'])
+    def sync_download(filename):
+        """
+        Ortak klasördeki spesifik bir dosyayı indirir.
+        """
+        if not core.sync_manager or not core.sync_manager.running:
+            return "Sync is disabled", 400
+            
+        sync_folder = core.sync_manager.sync_folder
+        safe_path = os.path.normpath(os.path.join(sync_folder, filename))
+        
+        if not safe_path.startswith(sync_folder) or not os.path.exists(safe_path) or not os.path.isfile(safe_path):
+            return "File not found", 404
+            
+        return send_file(safe_path, as_attachment=True)
+
     @app.route('/api/clipboard', methods=['GET', 'POST'])
     def manage_clipboard():
         """

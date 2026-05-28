@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates', 'templates'), ('static', 'static'), ('assets', 'assets'), ('C:\\Users\\ibrahim\\Desktop\\PyTransfer - Kopya\\.venv\\Lib\\site-packages\\customtkinter', 'customtkinter'), ('C:\\Users\\ibrahim\\Desktop\\PyTransfer - Kopya\\.venv\\Lib\\site-packages\\tkinterdnd2', 'tkinterdnd2')],
+    datas=[('templates', 'templates'), ('static', 'static'), ('assets', 'assets'), ('C:\\Users\\ibrahim\\Desktop\\PyTransfer\\.venv\\Lib\\site-packages\\customtkinter', 'customtkinter'), ('C:\\Users\\ibrahim\\Desktop\\PyTransfer\\.venv\\Lib\\site-packages\\tkinterdnd2', 'tkinterdnd2')],
     hiddenimports=['customtkinter', 'tkinterdnd2', 'PIL._tkinter_finder', 'zeroconf._utils.ipaddress', 'zeroconf._dns', 'zeroconf._services', 'flask', 'werkzeug', 'qrcode', 'qrcode.image.pil'],
     hookspath=[],
     hooksconfig={},

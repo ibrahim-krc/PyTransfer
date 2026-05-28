@@ -1271,6 +1271,16 @@ class PyTransferGUI:
         is_on = self.left_panel.tunnel_switch.get()
         if is_on:
             from tkinter import messagebox
+            from utils import is_internet_available
+            
+            if not is_internet_available():
+                self.left_panel.tunnel_switch.deselect()
+                messagebox.showerror(
+                    "İnternet Bağlantısı Yok", 
+                    "Dış ağa (tünele) bağlanabilmek için aktif bir internet bağlantınızın olması gerekmektedir. Lütfen internet bağlantınızı kontrol edip tekrar deneyin."
+                )
+                return
+
             msg = (
                 "⚠️ DİKKAT: SUNUCUNUZU İNTERNETE AÇIYORSUNUZ\n\n"
                 "• Bu işlemi onayladığınızda uygulamanız tüm dünyaya açık hale gelir.\n"

@@ -4,6 +4,20 @@ import qrcode
 import uuid
 from PIL import Image
 
+def is_internet_available(host="cloudflare.com", port=443, timeout=3):
+    """
+    İnternet bağlantısının olup olmadığını kontrol eder.
+    GSB/KYK gibi kısıtlı ağlarda DNS portları (53) engellendiği için
+    direkt olarak Cloudflare'in HTTPS (443) portuna bağlanmayı dener.
+    """
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except Exception:
+        return False
+
+
 class SharedFile:
     """
     Paylaşılan tek bir dosyanın üst verilerini (ID, ad, boyut, yol, uzantı)

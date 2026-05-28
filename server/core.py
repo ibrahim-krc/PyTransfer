@@ -11,6 +11,7 @@ file_manager = None
 log_callback = None
 received_callback = None
 pin_changed_callback = None
+sync_manager = None
 
 clipboard_text = ""
 clipboard_history = []

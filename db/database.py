@@ -3,8 +3,9 @@ import os
 import json
 import time
 
-DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(DB_DIR, "PyTransfer.db")
+APP_DATA_DIR = os.path.join(os.path.expanduser("~"), ".pytransfer")
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(APP_DATA_DIR, "PyTransfer.db")
 
 def _get_connection():
     # Multi-threading desteği için check_same_thread=False (sadece basit okuma/yazmalar için)
@@ -14,9 +15,6 @@ def initialize_database():
     """
     Veritabanı tablolarını yoksa oluşturur.
     """
-    if not os.path.exists(DB_DIR):
-        os.makedirs(DB_DIR)
-
     conn = _get_connection()
     cursor = conn.cursor()
 

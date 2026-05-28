@@ -85,11 +85,28 @@ class SpeedTrackerMiddleware:
         if is_download:
             core.transfer_stats["active_downloads"] = core.transfer_stats.get("active_downloads", 0) + 1
             
+        import settings_manager
+        settings = settings_manager.load()
+        # İndirmeler için hız sınırı (MB/s -> Bytes/s)
+        max_mbps = float(settings.get("max_bandwidth", 0.0))
+        max_bps = max_mbps * 1024 * 1024 if max_mbps > 0 else 0
+            
         try:
             for data in iterable:
-                self.downloaded_bytes += len(data)
+                start_time = time.time()
+                data_len = len(data)
+                
+                self.downloaded_bytes += data_len
                 self.update_speeds()
                 yield data
+                
+                # Eğer hız sınırı varsa ve indirme işlemindeysek, paketi geciktir
+                if is_download and max_bps > 0 and data_len > 0:
+                    required_time = data_len / max_bps
+                    elapsed = time.time() - start_time
+                    if elapsed < required_time:
+                        time.sleep(required_time - elapsed)
+
         finally:
             if is_download:
                 core.transfer_stats["active_downloads"] -= 1
