@@ -282,6 +282,65 @@ def register_routes(app):
             
         return jsonify({"status": "error", "message": "Upload failed"}), 500
 
+    @app.route('/dropzone/<token>', methods=['GET'])
+    def dropzone_page(token):
+        """
+        Dosya talep kutusu (Dropzone) arayüzünü sunar.
+        """
+        if token not in core.active_dropzones:
+            return "Geçersiz veya süresi dolmuş bağlantı.", 404
+        return render_template('dropzone.html', token=token)
+
+    @app.route('/api/dropzone_upload/<token>', methods=['POST'])
+    def dropzone_upload(token):
+        """
+        Dropzone arayüzü üzerinden gelen dosyaları kabul eder (PIN gerektirmez).
+        """
+        if token not in core.active_dropzones:
+            return jsonify({"status": "error", "message": "Geçersiz token"}), 401
+            
+        if not core.file_manager:
+            return jsonify({"status": "error", "message": "Sistem hazır değil"}), 500
+            
+        if 'file' not in request.files:
+            return jsonify({"status": "error", "message": "Dosya bulunamadı"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"status": "error", "message": "Dosya seçilmedi"}), 400
+            
+        if file:
+            original_name = file.filename
+            filename = werkzeug.utils.secure_filename(original_name)
+            if not filename:
+                filename = f"dropzone_{werkzeug.utils.secure_filename(original_name)}"
+                if not filename or filename == "dropzone_":
+                    filename = "uploaded_file"
+                    
+            name, ext = os.path.splitext(filename)
+            dest_path = os.path.join(core.file_manager.download_dir, filename)
+            counter = 1
+            while os.path.exists(dest_path):
+                filename = f"{name}_{counter}{ext}"
+                dest_path = os.path.join(core.file_manager.download_dir, filename)
+                counter += 1
+                
+            file.save(dest_path)
+            
+            client_ip = request.remote_addr
+            if core.log_callback:
+                core.log_callback(f"DROPZONE: {original_name} <- {client_ip}")
+
+            db.add_history(original_name, "Talep (Dropzone)", client_ip)
+            if core.received_callback:
+                core.received_callback(dest_path)
+                
+            send_desktop_notification("PyTransfer Dropzone", f"{client_ip} size dosya yolladı:\n{original_name}")
+                
+            return jsonify({"status": "success", "filename": filename})
+            
+        return jsonify({"status": "error", "message": "Upload failed"}), 500
+
     @app.route('/api/sync/list', methods=['GET'])
     def sync_list():
         """

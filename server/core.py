@@ -24,6 +24,8 @@ _otp_timer = None
 
 public_url = None
 
+active_dropzones = set()
+
 active_clients = {}
 blocked_clients = set()
 discovered_servers = {}

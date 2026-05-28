@@ -26,14 +26,23 @@ class LeftPanel(ctk.CTkFrame):
             from PIL import Image
             import os
             _base = getattr(_sys, '_MEIPASS', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
             logo_path = os.path.join(_base, "assets", "logo.png")
             if os.path.exists(logo_path):
                 pil_img = Image.open(logo_path)
                 logo_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(40, 40))
             else:
                 logo_img = None
+                
+            upload_icon_path = os.path.join(_base, "assets", "icons", "upload.png")
+            if os.path.exists(upload_icon_path):
+                up_img = Image.open(upload_icon_path)
+                upload_img = ctk.CTkImage(light_image=up_img, dark_image=up_img, size=(18, 18))
+            else:
+                upload_img = None
         except Exception:
             logo_img = None
+            upload_img = None
 
         logo_label = ctk.CTkLabel(
             self, 
@@ -119,26 +128,18 @@ class LeftPanel(ctk.CTkFrame):
         )
         copy_url_btn.grid(row=0, column=1, sticky="e")
         
-        self.pin_frame = ctk.CTkFrame(self, fg_color=("#e2e8f0", "#1e293b"), height=42, corner_radius=8)
-        self.pin_frame.grid(row=7, column=0, padx=20, pady=(5, 10), sticky="ew")
-        self.pin_frame.grid_columnconfigure(1, weight=1)
-        self.pin_frame.grid_propagate(False)
-        
-        self.pin_label_title = ctk.CTkLabel(
-            self.pin_frame, 
-            text="🔒 Erişim PIN:", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#475569", "#94a3b8")
+        self.dropzone_btn = ctk.CTkButton(
+            self,
+            text=" Dosya İsteği Linki Oluştur",
+            image=upload_img,
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            height=32,
+            font=ctk.CTkFont(weight="bold", size=12),
+            command=self.controller.generate_dropzone_link,
+            state="disabled"
         )
-        self.pin_label_title.grid(row=0, column=0, padx=(12, 5), pady=7, sticky="w")
-        
-        self.pin_value_label = ctk.CTkLabel(
-            self.pin_frame, 
-            text="Korumasız", 
-            font=ctk.CTkFont(size=14, weight="bold", family="Consolas"),
-            text_color="#f59e0b"
-        )
-        self.pin_value_label.grid(row=0, column=1, padx=(5, 12), pady=7, sticky="e")
+        self.dropzone_btn.grid(row=7, column=0, padx=20, pady=(5, 10), sticky="ew")
         
         self.activity_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.activity_frame.grid(row=8, column=0, padx=20, pady=(5, 5), sticky="ew")
@@ -154,6 +155,8 @@ class LeftPanel(ctk.CTkFrame):
         self.activity_label.grid(row=0, column=0, sticky="ew")
         
 
+        
+
         self.server_toggle_btn = ctk.CTkButton(
             self, 
             text="Sunucuyu Başlat", 
@@ -167,18 +170,11 @@ class LeftPanel(ctk.CTkFrame):
 
     def update_pin_display(self, pin_code, security_enabled):
         """
-        Erişim PIN değerini ve güvenlik durumunu panel arayüzünde günceller.
+        LeftPanel artık PIN değerini tek başına göstermiyor,
+        bu özellik main_window tarafından status bar üzerinden yönetiliyor.
+        Bunu geriye dönük uyumluluk için boş bıraktık.
         """
-        if security_enabled:
-            self.pin_value_label.configure(
-                text=str(pin_code), 
-                text_color=("#4f46e5", "#818cf8")
-            )
-        else:
-            self.pin_value_label.configure(
-                text="Pasif (Açık)", 
-                text_color=("#ea580c", "#f97316")
-            )
+        pass
 
     def update_activity(self, message):
         """

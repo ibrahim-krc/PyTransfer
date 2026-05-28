@@ -413,14 +413,28 @@ class PyTransferGUI:
 
             threading.Thread(target=_stop, daemon=True).start()
 
+    def _update_status_indicator(self):
+        """
+        Durum çubuğunu (Sunucu Aktif/Durduruldu) ve PIN bilgisini günceller.
+        """
+        if self.server_running:
+            self.left_panel.status_frame.configure(fg_color=("#dcfce7", "#143f24"))
+            if self.security_enabled_var.get():
+                self.left_panel.status_indicator.configure(text=f"● Sunucu Aktif | PIN: {self.pin_code}", text_color="#10b981")
+            else:
+                self.left_panel.status_indicator.configure(text="● Sunucu Aktif | PIN: Korumasız", text_color="#10b981")
+        else:
+            self.left_panel.status_frame.configure(fg_color=("#fee2e2", "#3f1a1a"))
+            self.left_panel.status_indicator.configure(text="● Durduruldu", text_color="#ef4444")
+
     def _on_server_started(self):
         """Sunucu başarıyla başladıktan sonra UI'ı günceller."""
         self._server_starting = False
         self.left_panel.server_toggle_btn.configure(text="Sunucuyu Durdur", fg_color="#ef4444", hover_color="#b91c1c")
         self.left_panel.tunnel_switch.configure(state="normal")
+        self.left_panel.dropzone_btn.configure(state="normal")
         self.server_running = True
-        self.left_panel.status_frame.configure(fg_color=("#dcfce7", "#143f24"))
-        self.left_panel.status_indicator.configure(text="● Sunucu Aktif", text_color="#10b981")
+        self._update_status_indicator()
         self.add_log(f"BİLGİ: Sunucu başlatıldı -> http://{self.selected_ip}:{self.port}")
 
     def _on_server_stopped(self):
@@ -430,10 +444,11 @@ class PyTransferGUI:
             fg_color="#10b981", hover_color="#059669",
             text_color=("#fff", "#fff")
         )
-        self.left_panel.status_frame.configure(fg_color=("#fee2e2", "#3f1a1a"))
-        self.left_panel.status_indicator.configure(text="● Durduruldu", text_color="#ef4444")
         self.left_panel.server_toggle_btn.configure(text="Sunucuyu Başlat", fg_color="#10b981", hover_color="#059669")
+        self.server_running = False
+        self._update_status_indicator()
         self.left_panel.tunnel_switch.configure(state="disabled")
+        self.left_panel.dropzone_btn.configure(state="disabled")
         if self.tunnel:
             self.tunnel.stop()
             self.left_panel.tunnel_switch.deselect()
@@ -444,6 +459,29 @@ class PyTransferGUI:
             port_entry.configure(state="normal")
         self.left_panel.ip_combobox.configure(state="normal")
         self.add_log("BİLGİ: Sunucu durduruldu.")
+
+    def generate_dropzone_link(self):
+        """
+        Dosya istek kutusu için benzersiz bir link oluşturur ve panoya kopyalar.
+        """
+        if not self.server_running:
+            from tkinter import messagebox
+            messagebox.showwarning("Sunucu Kapalı", "Dropzone linki oluşturmak için önce sunucuyu başlatmalısınız.")
+            return
+            
+        import uuid
+        token = str(uuid.uuid4())[:8]
+        core.active_dropzones.add(token)
+        
+        base_url = core.public_url if core.public_url else f"http://{self.selected_ip}:{self.port}"
+        dropzone_url = f"{base_url}/dropzone/{token}"
+        
+        self.root.clipboard_clear()
+        self.root.clipboard_append(dropzone_url)
+        self.add_log(f"DROPZONE: Yeni dosya istek bağlantısı oluşturuldu ve panoya kopyalandı -> {dropzone_url}")
+        
+        from tkinter import messagebox
+        messagebox.showinfo("Başarılı", f"Dosya istek bağlantısı başarıyla oluşturuldu ve panoya kopyalandı!\n\nBu linki dosya alacağınız kişiye gönderebilirsiniz:\n{dropzone_url}")
 
     def _get_file_icon(self, filename):
         if not hasattr(self, '_icons_cache'):
@@ -1246,6 +1284,7 @@ class PyTransferGUI:
         self.pin_code = new_pin
         core.pin_code = self.pin_code
         self.left_panel.update_pin_display(self.pin_code, self.security_enabled_var.get())
+        self._update_status_indicator()
         self.update_qr_code()
         self.add_log(f"GÜVENLİK: Erişim PIN kodu güncellendi: {self.pin_code}")
         messagebox.showinfo("Başarılı", f"Erişim PIN kodu başarıyla güncellendi: {self.pin_code}")
@@ -1343,6 +1382,7 @@ class PyTransferGUI:
             self.right_panel.pin_entry.delete(0, "end")
             self.right_panel.pin_entry.insert(0, new_pin)
         self.left_panel.update_pin_display(new_pin, self.security_enabled_var.get())
+        self._update_status_indicator()
         self.update_qr_code()
 
     def cleanup(self):

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyTransfer - Dosya İsteği</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+</head>
+<body style="justify-content: center; background-color: var(--bg-main);">
+    <div class="card lock-card" style="max-width: 450px; width: 100%;">
+        <div class="logo-container" style="justify-content: center; margin-bottom: 20px; text-align: left;">
+            <div class="logo-icon" style="background: none;">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="PyTransfer Logo" style="width: 44px; height: 44px;">
+            </div>
+            <div class="logo-text">
+                <h1>PyTransfer</h1>
+                <p>Güvenli Dosya İsteği</p>
+            </div>
+        </div>
+        
+        <p class="lock-message" style="margin-bottom: 30px;">
+            Sizden dosya talep ediliyor. Aşağıdaki alana dosyalarınızı sürükleyip bırakarak güvenli bir şekilde aktarabilirsiniz.
+        </p>
+
+        <input type="file" id="file-input" multiple style="display: none;">
+
+        <div class="upload-zone" id="drop-zone" style="padding: 50px 20px;">
+            <div class="upload-icon">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 36px;"></i>
+            </div>
+            <p class="upload-text" style="font-size: 15px; margin-top: 15px;">Dosyaları buraya sürükleyin</p>
+            <p class="upload-subtext">veya bilgisayarınızdan seçin</p>
+        </div>
+
+        <div id="progress-container" class="progress-container" style="text-align: left; margin-top: 20px;">
+            <!-- Upload progress items -->
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i id="toast-icon" class="fa-solid fa-circle-check toast-icon"></i>
+        <span id="toast-text" class="toast-text">Başarılı!</span>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const progressContainer = document.getElementById('progress-container');
+        const token = "{{ token }}";
+        
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toast-text');
+        const toastIcon = document.getElementById('toast-icon');
+        
+        function showToast(message, type = 'success') {
+            toastText.textContent = message;
+            if (type === 'success') {
+                toastIcon.className = 'fa-solid fa-circle-check toast-icon';
+                toastIcon.style.color = 'var(--success)';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-exclamation toast-icon';
+                toastIcon.style.color = 'var(--error)';
+            }
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.style.borderColor = 'var(--accent)', false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.style.borderColor = 'var(--border-color)', false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFiles, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) uploadFiles(files);
+        }
+
+        function handleFiles() {
+            const files = fileInput.files;
+            if (files.length > 0) uploadFiles(files);
+        }
+
+        function uploadFiles(files) {
+            Array.from(files).forEach(uploadFile);
+            fileInput.value = '';
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressId = 'prog-' + Math.random().toString(36).substr(2, 9);
+            const progressHtml = `
+                <div class="progress-item" id="${progressId}">
+                    <div class="progress-info">
+                        <span class="progress-name">${file.name}</span>
+                        <span class="progress-percent" id="${progressId}-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="${progressId}-bar"></div>
+                    </div>
+                </div>
+            `;
+            progressContainer.insertAdjacentHTML('afterbegin', progressHtml);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/api/dropzone_upload/${token}`, true);
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    document.getElementById(`${progressId}-percent`).textContent = percentComplete + '%';
+                    document.getElementById(`${progressId}-bar`).style.width = percentComplete + '%';
+                }
+            };
+
+            xhr.onload = function() {
+                const item = document.getElementById(progressId);
+                if (xhr.status === 200) {
+                    showToast('Dosya başarıyla yüklendi!');
+                    setTimeout(() => item.remove(), 2000);
+                } else {
+                    showToast('Yükleme hatası!', 'error');
+                    item.style.borderColor = 'var(--error)';
+                    document.getElementById(`${progressId}-percent`).textContent = 'HATA';
+                    document.getElementById(`${progressId}-percent`).style.color = 'var(--error)';
+                    document.getElementById(`${progressId}-bar`).style.backgroundColor = 'var(--error)';
+                }
+            };
+
+            xhr.onerror = function() {
+                showToast('Bağlantı hatası!', 'error');
+            };
+
+            xhr.send(formData);
+        }
+    </script>
+</body>
+</html>
